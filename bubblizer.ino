@@ -13,9 +13,9 @@ const float CALIBRATION_FACTOR = 202702.36; // you will need to customize this f
 const float OFFSET = 0.56; // and customize this one too
 const float CANISTER_WEIGHT = 8.04; // this is the weight of an empty canister
 const float CANISTER_CAPACITY = 5;
-const float UPDATE_TRIGGER = 0.3;
+const float UPDATE_TRIGGER = 1; // 1% change to update display
 
-float storedWeight = 1000; // setting top an arbitrarily huge value to ensure that scale display resets
+float storedPercentage = 1000; // setting top an arbitrarily huge value to ensure that scale display resets
 
 const String STATUS_MESSAGE = "Status: ";
 const String TANK_MESSAGE = "CO2 Tank at ";
@@ -50,21 +50,21 @@ void loop() {
   float reading = scale.get_units(10);
   
   // determine weight of C02 remaining;
-  float weightRemaining = reading - CANISTER_WEIGHT  - OFFSET;
+  float weightRemaining = reading - CANISTER_WEIGHT - OFFSET;
   
   // get percentage of weight remaining (but as an int, not a decimal, hence the *100)
   float percentage = round( ((weightRemaining) / CANISTER_CAPACITY) * 100);
 
   /*
     The load cell reading might fluctuate a bit, 
-    so to make sure it updates after only a meaningful change (e.g. .3 lbs),
-    we compare the weight to the last stored weight.
+    so to make sure it updates after only a meaningful change (e.g. 1%),
+    we compare the weight to the last stored weightn percentage.
     Then we store the new weight.
   */
-  float weightChange = storedWeight-weightRemaining;
-  if ( abs(weightChange) > UPDATE_TRIGGER ) {
+  float percentChange = storedPercentage - percentage;
+  if ( (abs(percentChange) >= UPDATE_TRIGGER) || (percentage < 0)) {
       updateDisplay(percentage, weightRemaining);
-      storedWeight = weightRemaining;
+      storedPercentage = percentage;
   }
 }
 
@@ -80,9 +80,16 @@ void updateDisplay(int percentage, float weightRemaining) {
   lcd.setCursor(0, 1);            
   if(percentage < 10 && percentage >= 6) {
     lcd.print("Status: REFILL SOON");
-  } else if (percentage < 6) {
+  } else if (percentage < 6 && percentage >=0) {
     lcd.print("Status: REFILL NOW");
-  } else {
+  } else if (percentage < 0) {
+    lcd.print("Status: ERROR");
+    lcd.setCursor(0, 2);
+    lcd.print("Is sensor connected?");
+    delay(5000);
+    return;
+  } 
+  else {
     lcd.print("Status: OK");
   }
   
